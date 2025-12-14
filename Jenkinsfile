@@ -6,40 +6,83 @@ pipeline {
     }
     
     stages {
-        stage('Prepare Files') {
+        stage('Checkout from Git') {
             steps {
-                script {
-                    writeFile file: 'Dockerfile', text: '''FROM python:3.9-alpine
-WORKDIR /app
-COPY . .
-CMD ["python", "app.py"]'''
-                    
-                    writeFile file: 'app.py', text: '''print("Hello from Docker CI/CD!")
-print("This would be your password generator app")'''
-                    
-                    writeFile file: 'build.sh', text: '''#!/bin/bash
-echo "Building $1:$2"
-docker build -t $1:$2 .
-echo "Done!"'''
-                    
-                    sh 'chmod +x build.sh'
-                }
+                echo "=== CLONING CODE FROM GIT ==="
+                // Код уже скачан автоматически
+                sh 'ls -la'
             }
         }
         
-        stage('Build Image') {
-            steps {
-                sh './build.sh ${APP_NAME} ${BUILD_NUMBER}'
-            }
-        }
-        
-        stage('Test') {
+        stage('Build Docker Image') {
             steps {
                 sh '''
-                    docker run --rm ${APP_NAME}:${BUILD_NUMBER}
-                    echo "✅ CI/CD works!"
+                    echo "=== BUILDING DOCKER IMAGE ==="
+                    echo "Using ACTUAL files from Git repository:"
+                    echo "- Dockerfile"
+                    echo "- app.py (REAL password generator)"
+                    echo "- build.sh"
+                    echo ""
+                    chmod +x build.sh
+                    ./build.sh ${APP_NAME} ${BUILD_NUMBER}
                 '''
             }
+        }
+        
+        stage('Test Real Application') {
+            steps {
+                sh '''
+                    echo "=== TESTING REAL APPLICATION ==="
+                    echo "Running ACTUAL password generator..."
+                    docker run --rm ${APP_NAME}:${BUILD_NUMBER}
+                '''
+            }
+        }
+        
+        stage('Verify Files in Image') {
+            steps {
+                sh '''
+                    echo "=== VERIFYING FILES IN IMAGE ==="
+                    echo "1. Checking files inside container:"
+                    docker run --rm ${APP_NAME}:${BUILD_NUMBER} ls -la /app
+                    echo ""
+                    echo "2. Checking app.py content:"
+                    docker run --rm ${APP_NAME}:${BUILD_NUMBER} head -20 /app/app.py
+                '''
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo '''
+            ============================================
+            ✅ CI/CD PROCESS COMPLETED SUCCESSFULLY!
+            ============================================
+            
+            WHAT WAS DEMONSTRATED:
+            1. ✅ Real code pulled from Git repository
+            2. ✅ Docker image built from ACTUAL application
+            3. ✅ Real password generator application runs
+            4. ✅ Full CI/CD automation via Jenkins
+            
+            FILES FROM GIT REPOSITORY:
+            - Dockerfile
+            - app.py (real Python application)
+            - build.sh (build script)
+            - Jenkinsfile (this pipeline)
+            
+            ============================================
+            '''
+            
+            sh '''
+                echo ""
+                echo "=== DOCKER IMAGES CREATED ==="
+                docker images ${APP_NAME} --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedSince}}"
+            '''
+        }
+        failure {
+            echo '❌ Build failed'
         }
     }
 }
