@@ -1,72 +1,76 @@
 import random
+import sys
 
 alf = "%#-&$ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 alf_len = len(alf)  # Длина алфавита (67 символов)
+
 def only_alf(vvod_str):
     for symbol in vvod_str:
         if symbol not in alf:
             return False
     return True
 
-if __name__ == "__main__":
-
-    while True:
-        pwd_len_vvod = input("Укажите длину пароля(ей): ")
-        if pwd_len_vvod.isdigit():
-            pwd_len = int(pwd_len_vvod)
-            if pwd_len >= 8:
-                break
-            else:
-                print("Ошибка: длина пароля должна быть не менее 8 символов.")
-        else:
-            print("Ошибка: длина пароля должна быть целым числом.")
-
-    while True:
-        pwd_kol_vvod = input("Укажите количество паролей: ")
-        if pwd_kol_vvod.isdigit():
-            pwd_kol = int(pwd_kol_vvod)
-            if pwd_kol >= 1:
-                break
-            else:
-                print("Ошибка: количество паролей должно быть не менее 1.")
-        else:
-            print("Ошибка: количество паролей должно быть целым числом.")
-
+def generate_passwords(pwd_len=12, pwd_kol=3, key="DockerCI2024"):
+    print("=== ГЕНЕРАТОР И ШИФРОВАТЕЛЬ ПАРОЛЕЙ ===")
+    print("CI/CD Демо-режим в Docker контейнере")
+    print("="*50 + "\n")
+    
+    print(f"Параметры:")
+    print(f"  • Длина пароля: {pwd_len}")
+    print(f"  • Количество паролей: {pwd_kol}")
+    print(f"  • Ключ шифрования: {key}")
+    print()
+    
+    # Генерация паролей
     password_list = []
     for n in range(pwd_kol):
         password = ''.join(random.choice(alf) for n in range(pwd_len))
         password_list.append(password)
-
-    print("\nСозданные пароли: ")
-    for pwd in password_list:
-        print(pwd)
-
-    while True:
-        key = input("Введите ключ для шифрования: ")
-        if len(key) >= 1 and only_alf(key):
-            break
-        else:
-            print("Ошибка: ключ должен содержать только символы из алфавита и не может быть пустым.")
-
+    
+    print("Созданные пароли: ")
+    for i, pwd in enumerate(password_list, 1):
+        print(f"  {i}. {pwd}")
+    
     # Шифрование паролей
     shifr_passwords = []
     for pwd in password_list:
         shifr_pwd = []
         for i in range(len(pwd)):
-            # Индекс символа сообщения в алфавите
             symbol_index = alf.find(pwd[i])
-            # Индекс символа ключа в алфавите (ключ повторяется, если он короче сообщения)
             key_symbol_index = alf.find(key[i % len(key)])
-            # Шифрование: (symbol_index + key_symbol_index) mod alfa_len
             shifr_symbol_index = (symbol_index + key_symbol_index) % alf_len
-            # Преобразование индекса обратно в символ
             shifr_symbol = alf[shifr_symbol_index]
-            # Добавляет зашифрованный символ в список
             shifr_pwd.append(shifr_symbol)
-            # Добавляет зашифрованный пароль (строку) в общий список зашифрованных паролей.
         shifr_passwords.append(''.join(shifr_pwd))
-
+    
+    print("\nЗашифрованные пароли: ")
+    for i, shifr_pwd in enumerate(shifr_passwords, 1):
+        print(f"  {i}. {shifr_pwd}")
+    
+    # Сохранение в файл
     with open('passwords_shifr.txt', 'w', encoding='utf-8') as f:
         for shifr_pwd in shifr_passwords:
             f.write(shifr_pwd + '\n')
-    print('Пароли сохранены в файл "passwords_shifr.txt" в зашифрованном виде.')
+    
+    print('\n' + '='*50)
+    print('✅ Пароли сохранены в файл "passwords_shifr.txt"')
+    print('✅ CI/CD процесс завершен успешно!')
+    print('='*50)
+    
+    return password_list, shifr_passwords
+
+if __name__ == "__main__":
+    # Автоматический режим для CI/CD
+    print("=== CI/CD Assignment: Docker + Jenkins ===")
+    print()
+    
+    # Фиксированные параметры для демо
+    passwords, encrypted = generate_passwords()
+    
+    print("\n" + "="*60)
+    print("ОТЧЕТ О ВЫПОЛНЕНИИ:")
+    print("="*60)
+    print(f"• Сгенерировано паролей: {len(passwords)}")
+    print(f"• Длина каждого пароля: 12 символов")
+    print(f"• Все пароли зашифрованы и сохранены")
+    print("="*60)
