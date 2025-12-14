@@ -6,48 +6,69 @@ pipeline {
     }
     
     stages {
-        stage('Checkout from Git') {
-            steps {
-                echo "=== CLONING CODE FROM GIT ==="
-                // Код уже скачан автоматически
-                sh 'ls -la'
-            }
-        }
-        
-        stage('Build Docker Image') {
+        stage('Prepare') {
             steps {
                 sh '''
-                    echo "=== BUILDING DOCKER IMAGE ==="
-                    echo "Using ACTUAL files from Git repository:"
-                    echo "- Dockerfile"
-                    echo "- app.py (REAL password generator)"
-                    echo "- build.sh"
+                    echo "=== PREPARING BUILD ==="
+                    echo "Current directory:"
+                    pwd
                     echo ""
-                    chmod +x build.sh
-                    ./build.sh ${APP_NAME} ${BUILD_NUMBER}
+                    echo "Files from Git:"
+                    ls -la
+                    echo ""
+                    echo "Checking file permissions..."
+                    ls -la *.sh || echo "No .sh files"
                 '''
             }
         }
         
-        stage('Test Real Application') {
+        stage('Fix Build Script') {
             steps {
                 sh '''
-                    echo "=== TESTING REAL APPLICATION ==="
-                    echo "Running ACTUAL password generator..."
+                    echo "=== FIXING BUILD SCRIPT ==="
+                    echo "Current build.sh content (first 5 lines):"
+                    head -5 build.sh || echo "Cannot read build.sh"
+                    echo ""
+                    echo "Converting build.sh for Linux..."
+                    # Удаляем Windows символы конца строки если есть
+                    sed -i 's/\\r$//' build.sh
+                    # Проверяем результат
+                    echo "First line of build.sh after fix:"
+                    head -1 build.sh
+                    echo ""
+                    echo "Making build.sh executable..."
+                    chmod 755 build.sh
+                    ls -la build.sh
+                '''
+            }
+        }
+        
+        stage('Execute Build Script') {
+            steps {
+                sh '''
+                    echo "=== EXECUTING BUILD SCRIPT ==="
+                    echo "Testing if build.sh is executable..."
+                    if [ -x "./build.sh" ]; then
+                        echo "✅ build.sh is executable"
+                        echo "Running build script..."
+                        ./build.sh ${APP_NAME} ${BUILD_NUMBER}
+                    else
+                        echo "❌ build.sh is NOT executable"
+                        echo "Trying alternative method..."
+                        sh build.sh ${APP_NAME} ${BUILD_NUMBER}
+                    fi
+                '''
+            }
+        }
+        
+        stage('Test Application') {
+            steps {
+                sh '''
+                    echo "=== TESTING APPLICATION ==="
+                    echo "Running the built Docker image..."
                     docker run --rm ${APP_NAME}:${BUILD_NUMBER}
-                '''
-            }
-        }
-        
-        stage('Verify Files in Image') {
-            steps {
-                sh '''
-                    echo "=== VERIFYING FILES IN IMAGE ==="
-                    echo "1. Checking files inside container:"
-                    docker run --rm ${APP_NAME}:${BUILD_NUMBER} ls -la /app
                     echo ""
-                    echo "2. Checking app.py content:"
-                    docker run --rm ${APP_NAME}:${BUILD_NUMBER} head -20 /app/app.py
+                    echo "✅ Application test completed!"
                 '''
             }
         }
@@ -57,32 +78,54 @@ pipeline {
         success {
             echo '''
             ============================================
-            ✅ CI/CD PROCESS COMPLETED SUCCESSFULLY!
+            ✅ CI/CD WITH BUILD SCRIPT - SUCCESS!
             ============================================
             
-            WHAT WAS DEMONSTRATED:
-            1. ✅ Real code pulled from Git repository
-            2. ✅ Docker image built from ACTUAL application
-            3. ✅ Real password generator application runs
-            4. ✅ Full CI/CD automation via Jenkins
+            COMPONENTS DEMONSTRATED:
+            1. Git repository with all files
+            2. Build script (build.sh) for automation
+            3. Dockerfile for image creation
+            4. Jenkins CI/CD pipeline
+            5. Full automated process
             
-            FILES FROM GIT REPOSITORY:
-            - Dockerfile
-            - app.py (real Python application)
-            - build.sh (build script)
-            - Jenkinsfile (this pipeline)
+            FILES USED:
+            - Dockerfile (image configuration)
+            - app.py (Python application)
+            - build.sh (build automation script)
+            - Jenkinsfile (CI/CD pipeline)
+            
+            PROCESS:
+            ✓ Code in Git repository
+            ✓ Jenkins triggers build automatically
+            ✓ Build script executes build steps
+            ✓ Docker image created
+            ✓ Application tested
             
             ============================================
             '''
             
             sh '''
                 echo ""
-                echo "=== DOCKER IMAGES CREATED ==="
-                docker images ${APP_NAME} --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedSince}}"
+                echo "=== FINAL RESULTS ==="
+                echo "Docker images:"
+                docker images ${APP_NAME} --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"
+                echo ""
+                echo "Build script executed successfully!"
             '''
         }
         failure {
             echo '❌ Build failed'
+            sh '''
+                echo "Debug information:"
+                echo "Files in workspace:"
+                ls -la
+                echo ""
+                echo "build.sh content (first 10 lines):"
+                head -10 build.sh || echo "Cannot read build.sh"
+                echo ""
+                echo "File type:"
+                file build.sh || echo "Cannot check file type"
+            '''
         }
     }
 }
